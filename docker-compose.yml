@@ -1,0 +1,52 @@
+services:
+  api-anything-bridge:
+    image: node:22-bookworm-slim
+    restart: unless-stopped
+    init: true
+    ports:
+      - '127.0.0.1:18765:18765'
+    environment:
+      API_ANYTHING_HOME: /data
+      API_ANYTHING_BROWSER: /usr/bin/chromium
+      HOME: /home/node
+      DEBIAN_FRONTEND: noninteractive
+    volumes:
+      - api_anything_bridge_data:/data
+    shm_size: 256mb
+    mem_limit: 1536m
+    cpus: 1.0
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - /bin/sh
+      - -euc
+      - |
+        apt-get update
+        apt-get install -y --no-install-recommends ca-certificates chromium gosu
+        rm -rf /var/lib/apt/lists/*
+        npm install --global --no-audit --no-fund --omit=dev api-anything@0.4.0 supergateway@4.2.2
+        install -d -o node -g node -m 0700 /data
+        if [ ! -s /data/gateway.key ]; then
+          node -e 'require("node:fs").writeFileSync("/data/gateway.key",require("node:crypto").randomBytes(32).toString("hex")+"\n",{mode:0o600})'
+        fi
+        chown node:node /data/gateway.key
+        chmod 0600 /data/gateway.key
+        if [ ! -s /data/settings.json ]; then
+          node -e 'require("node:fs").writeFileSync("/data/settings.json",JSON.stringify({share:false,askedAt:new Date().toISOString(),verify:false,verifyAskedAt:new Date().toISOString()})+"\n",{mode:0o600})'
+        fi
+        chown node:node /data/settings.json
+        chmod 0600 /data/settings.json
+        exec gosu node supergateway --stdio 'api-anything mcp' --outputTransport streamableHttp --stateful --port 18765 --host 0.0.0.0 --apiKeyFile /data/gateway.key --healthEndpoint /health --healthCheck server --tools find_sites --tools list_operations --tools call_operation --tools call_batch --tools get_job --tools get_result --tools site_status --tools learn_site --tools list_sites --logLevel info
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:18765/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+volumes:
+  api_anything_bridge_data:
