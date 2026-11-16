@@ -52,11 +52,11 @@ printf 'version: 3\nagent:\n  authtoken: %s\n' "$token" > "$temp"
 unset token
 chown 65534:65534 "$temp"
 chmod 0600 "$temp"
-docker pull ngrok/ngrok:3.39.11-debian >/dev/null
-docker run --rm --user 65534:65534 --cap-drop ALL --security-opt no-new-privileges:true --network none --mount "type=bind,source=$temp,target=/etc/ngrok.yml,readonly" ngrok/ngrok:3.39.11-debian config check --config /etc/ngrok.yml >/dev/null
+docker pull ngrok/ngrok:3.39.13-debian >/dev/null
+docker run --rm --user 65534:65534 --cap-drop ALL --security-opt no-new-privileges:true --network none --mount "type=bind,source=$temp,target=/etc/ngrok.yml,readonly" ngrok/ngrok:3.39.13-debian config check --config /etc/ngrok.yml >/dev/null
 mv "$temp" "$config"
 trap - EXIT
-docker run -d --name api-anything-ngrok --restart unless-stopped --user 65534:65534 --cap-drop ALL --security-opt no-new-privileges:true --network host --mount "type=bind,source=$config,target=/etc/ngrok.yml,readonly" ngrok/ngrok:3.39.11-debian http 18765 --url https:// --config /etc/ngrok.yml >/dev/null
+docker run -d --name api-anything-ngrok --restart unless-stopped --user 65534:65534 --cap-drop ALL --security-opt no-new-privileges:true --network host --mount "type=bind,source=$config,target=/etc/ngrok.yml,readonly" ngrok/ngrok:3.39.13-debian http 18765 --url https:// --config /etc/ngrok.yml >/dev/null
 echo 'Started a separate tunnel container without changing the API Anything container.'
 url=''
 for i in $(seq 1 15); do
